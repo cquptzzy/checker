@@ -1,0 +1,47 @@
+name: Skdata tocsv
+inputs:
+- {name: file, type: Tarball}
+outputs:
+- {name: output_csv, type: CSV}
+implementation:
+  container:
+    image: python:3.7
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas==1.1.4' || PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet
+      --no-warn-script-location 'pandas==1.1.4' --user) && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - |
+      def _make_parent_dirs_and_return_path(file_path: str):
+          import os
+          os.makedirs(os.path.dirname(file_path), exist_ok=True)
+          return file_path
+
+      def skdata_tocsv(file_path,
+                    output_csv):
+
+          import pandas as pd
+
+          all=pd.read_csv("http://lib.stat.cmu.edu/datasets/boston",sep="\s+", skiprows=22, header=None)
+          print(output_csv)
+          all.to_csv('data.csv')
+
+      import argparse
+      _parser = argparse.ArgumentParser(prog='Skdata tocsv', description='')
+      _parser.add_argument("--file", dest="file_path", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--output-csv", dest="output_csv", type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)
+      _parsed_args = vars(_parser.parse_args())
+
+      _outputs = skdata_tocsv(**_parsed_args)
+    args:
+    - --file
+    - {inputPath: file}
+    - --output-csv
+    - {outputPath: output_csv}
